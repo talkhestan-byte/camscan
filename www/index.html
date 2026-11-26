@@ -15,6 +15,10 @@
  .online{background:#2ecc71}.offline{background:#e74c3c}.auth{background:#f1c40f}
  small{color:#aaa;display:block;margin-top:4px}
  .row{margin-top:8px}
+ #shot{display:none;position:fixed;inset:0;z-index:20;background:#000e;align-items:center;justify-content:center;padding:16px;box-sizing:border-box}
+ #shotBox{width:100%;max-width:700px;background:#222;border-radius:12px;padding:10px;box-sizing:border-box}
+ #shotImage{display:block;width:100%;max-height:75vh;object-fit:contain;background:#000}
+ #shot button{width:100%;margin:8px 0 0}
 </style></head><body>
 <header>
  <input id="u" placeholder="نام کاربری"><input id="p" type="password" placeholder="رمز">
@@ -23,5 +27,11 @@
 </header>
 <h3>⭐ دوربین‌های من</h3><div id="mine"></div>
 <h3>نتایج جستجو</h3><div id="list"></div>
+<div id="shot" onclick="if(event.target===this)closeSnapshot()">
+ <div id="shotBox">
+  <img id="shotImage" alt="تصویر ثابت دوربین">
+  <button onclick="closeSnapshot()">بستن تصویر</button>
+ </div>
+</div>
 <script src="app.js"></script>
 </body></html>
