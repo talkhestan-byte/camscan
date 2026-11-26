@@ -1,24 +1,26 @@
-<!doctype html>
-<html lang="fa" dir="rtl">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#101827">
-  <title>CamScan</title>
-  <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; background: #101827; color: #fff; font-family: sans-serif; }
-    main { max-width: 560px; margin: 0 auto; padding: 28px 18px; }
-    button { border: 0; border-radius: 12px; padding: 14px 20px; background: #2563eb; color: white; font-size: 16px; }
-  </style>
-</head>
-<body>
-  <main>
-    <h1>CamScan</h1>
-    <p>قالب اولیه برنامه اسکنر</p>
-    <button id="scanButton" type="button">شروع اسکن</button>
-    <p id="status" role="status">برای شروع، دکمه را لمس کنید.</p>
-  </main>
-  <script src="./app.js"></script>
-</body>
-</html>
+<!DOCTYPE html>
+<html lang="fa" dir="rtl"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>اسکنر دوربین</title>
+<style>
+ body{font-family:sans-serif;margin:0;background:#111;color:#eee}
+ header{padding:12px;background:#1d1d1d;position:sticky;top:0}
+ input{width:30%;padding:8px;margin:2px;border-radius:6px;border:0}
+ button{padding:10px 16px;border:0;border-radius:8px;background:#2f7bff;color:#fff;font-size:15px}
+ .card{margin:10px;padding:12px;background:#1d1d1d;border-radius:12px}
+ .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-left:6px}
+ .online{background:#2ecc71}.offline{background:#e74c3c}.auth{background:#f1c40f}
+ small{color:#aaa;display:block;margin-top:4px;direction:ltr;text-align:right;word-break:break-all}
+ #viewer{display:none;position:fixed;inset:0;background:#000;z-index:9;text-align:center}
+ #viewer img{width:100%;max-height:80vh;object-fit:contain}
+</style></head><body>
+<header>
+ <input id="u" placeholder="نام کاربری"><input id="p" type="password" placeholder="رمز">
+ <button onclick="scan()">جستجوی دوربین‌ها</button>
+ <div id="st" style="margin-top:6px;font-size:13px"></div>
+</header>
+<div id="list"></div>
+<div id="viewer"><p id="vt"></p><img id="vi"><br><button onclick="closeView()">بستن</button></div>
+<script src="app.js"></script>
+</body></html>
