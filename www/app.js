@@ -62,7 +62,7 @@ async function scan() {
       const m = found.filter(c => c.uuid === sv.uuid);
       if (m.length === 1) f = m[0];
     }
-    if (f) { sv.ip = f.ip; sv.id = f.ip; if (f.rtsp) sv.rtsp = f.rtsp; sv.status = f.status; }
+    if (f) { sv.ip = f.ip; sv.id = f.ip; if (f.rtsp) sv.rtsp = f.rtsp; if (f.snapshot) sv.snapshot = f.snapshot; sv.status = f.status; }
   });
   storeSaved(); render();
   $('#st').textContent = `${found.length} دوربین/دستگاه`;
@@ -110,6 +110,18 @@ async function onvifMedia(c) {
     const tok = pd.getElementsByTagNameNS('*', 'Profiles')[0]?.getAttribute('token');
     if (!tok) return;
     c.ptz = c.ptz && pd.getElementsByTagNameNS('*', 'PTZConfiguration').length > 0;
+
+    // دریافت آدرس تصویر ثابت از سرویس استاندارد ONVIF
+    try {
+      const sr = await soap(media, `<GetSnapshotUri xmlns="${MEDIA}"><ProfileToken>${tok}</ProfileToken></GetSnapshotUri>`);
+      const snapshot = tx(xml(sr.text), 'Uri');
+      if (sr.status === 200 && snapshot) {
+        const u = new URL(snapshot);
+        u.hostname = c.ip;
+        c.snapshot = u.toString();
+      }
+    } catch (e) { c.snapshot = ''; }
+
     r = await soap(media, `<GetStreamUri xmlns="${MEDIA}"><StreamSetup>
       <Stream xmlns="http://www.onvif.org/ver10/schema">RTP-Unicast</Stream>
       <Transport xmlns="http://www.onvif.org/ver10/schema"><Protocol>RTSP</Protocol></Transport>
@@ -136,6 +148,21 @@ function buildUrl(c, user, pass) {
     url = url.replace('rtsp://', `rtsp://${encodeURIComponent(user)}:${encodeURIComponent(pass || '')}@`);
   return url;
 }
+async function snapshotCam(id, isSaved) {
+  const c = find(id, isSaved);
+  if (!c) return err('دوربین پیدا نشد');
+  if (!c.snapshot) return err('آدرس Snapshot از دوربین دریافت نشد؛ رمز را وارد کنید و دوباره جستجو کنید. برای تصویر زنده از RTSP استفاده کنید.');
+  const user = isSaved ? c.user : cred().user;
+  const pass = isSaved ? c.pass : cred().pass;
+  try {
+    const r = await CamScan.http({ url: c.snapshot, user: user || '', pass: pass || '', binary: true });
+    if (r.status !== 200 || !r.b64) throw new Error('دوربین تصویر ثابت ارسال نکرد');
+    $('#shotImage').src = 'data:image/jpeg;base64,' + r.b64;
+    $('#shot').style.display = 'flex';
+    $('#st').textContent = 'تصویر Snapshot دریافت شد';
+  } catch (e) { err(e.message || 'دریافت تصویر Snapshot ناموفق بود'); }
+}
+function closeSnapshot() { $('#shot').style.display = 'none'; $('#shotImage').removeAttribute('src'); }
 function playCam(id, isSaved) {
   const c = find(id, isSaved);
   if (!c) return err('دوربین پیدا نشد');
@@ -149,7 +176,7 @@ function saveCam(id) {
   const name = prompt('نام دوربین:', c.model || c.ip);
   if (!name) return;
   const old = saved.findIndex(s => s.id === id);
-  const item = { id, uuid: c.uuid || '', name, ip: c.ip, rtsp: c.rtsp || '', brand: c.brand,
+  const item = { id, uuid: c.uuid || '', name, ip: c.ip, rtsp: c.rtsp || '', snapshot: c.snapshot || '', brand: c.brand,
     model: c.model, kind: c.kind, user: cred().user, pass: cred().pass, status: c.status };
   if (old >= 0) saved[old] = item; else saved.push(item);
   storeSaved(); render();
@@ -171,7 +198,8 @@ function card(c, isSaved) {
     <div>${c.brand || ''} ${c.model || ''} ${c.kind ? '— ' + c.kind : ''}</div>
     <small>${c.ip}</small>
     <div class="row">
-      <button onclick="playCam('${c.id}',${isSaved})">▶ پخش</button>
+      ${c.snapshot ? `<button class="g" onclick="snapshotCam('${c.id}',${isSaved})">▣ تصویر</button>` : ''}
+      <button onclick="playCam('${c.id}',${isSaved})">▶ پخش زنده</button>
       ${isSaved
         ? `<button class="g" onclick="renameCam('${c.id}')">✎ نام</button><button class="r" onclick="delCam('${c.id}')">🗑</button>`
         : `<button class="g" onclick="saveCam('${c.id}')">★ ذخیره</button>`}
