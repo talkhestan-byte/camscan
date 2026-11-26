@@ -19,14 +19,16 @@ jobs:
       - run: npm install
       - run: |
           [ -d android ] || npx cap add android
-          npx cap sync android
       - name: Add plugin and permissions
         run: |
           D=android/app/src/main/java/com/camscan/app
           mkdir -p $D
-          cp native/CamScanPlugin.java $D/
-          cp native/MainActivity.java $D/
+          cp native/*.java $D/
           cp native/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
+          grep -q libvlc android/app/build.gradle || cat >> android/app/build.gradle <<'EOF'
+          dependencies { implementation 'org.videolan.android:libvlc-all:3.6.0' }
+          android { defaultConfig { ndk { abiFilters 'arm64-v8a', 'armeabi-v7a' } } }
+          EOF
       - run: cd android && chmod +x gradlew && ./gradlew assembleDebug
       - uses: actions/upload-artifact@v4
         with:
