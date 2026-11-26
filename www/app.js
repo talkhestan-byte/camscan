@@ -146,5 +146,4 @@ setInterval(() => cams.forEach(async c => {
   if (el) el.className = 'dot ' + c.status;
 }), 15000);
 document.getElementById('st').textContent =
-  'Capacitor: ' + (window.Capacitor ? 'OK' : 'NO') +
-  ' | پلاگین: ' + (window.Capacitor?.isPluginAvailable?.('CamScan') ? 'OK' : 'NO');
+  'پلاگین: ' + (window.Capacitor?.Plugins?.CamScan ? 'OK' : 'NO');
