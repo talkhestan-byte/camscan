@@ -1,6 +1,7 @@
 package com.camscan.app;
-import android.content.Intent;
+
 import android.content.Context;
+import android.content.Intent;
 import android.net.wifi.WifiManager;
 import android.util.Base64;
 import com.getcapacitor.*;
@@ -31,7 +32,6 @@ public class CamScanPlugin extends Plugin {
     return o.toByteArray();
   }
 
-  // --- WS-Discovery (ONVIF) ---
   @PluginMethod
   public void play(PluginCall call) {
     Intent i = new Intent(getActivity(), PlayerActivity.class);
@@ -40,6 +40,8 @@ public class CamScanPlugin extends Plugin {
     getActivity().startActivity(i);
     call.resolve();
   }
+
+  @PluginMethod
   public void discover(PluginCall call) {
     new Thread(() -> {
       WifiManager wm = (WifiManager) getContext().getApplicationContext()
@@ -83,7 +85,6 @@ public class CamScanPlugin extends Plugin {
     }).start();
   }
 
-  // --- TCP port scan of local /24 ---
   @PluginMethod
   public void scanPorts(PluginCall call) {
     new Thread(() -> {
@@ -121,7 +122,6 @@ public class CamScanPlugin extends Plugin {
     }).start();
   }
 
-  // --- Generic HTTP GET (text or binary/base64), optional Basic auth ---
   @PluginMethod
   public void http(PluginCall call) {
     new Thread(() -> {
@@ -145,7 +145,6 @@ public class CamScanPlugin extends Plugin {
     }).start();
   }
 
-  // --- ONVIF SOAP call with WS-UsernameToken (digest) ---
   @PluginMethod
   public void soap(PluginCall call) {
     new Thread(() -> {
@@ -182,4 +181,4 @@ public class CamScanPlugin extends Plugin {
       } catch (Exception e) { call.reject(String.valueOf(e.getMessage())); }
     }).start();
   }
-                                                         }
+}
