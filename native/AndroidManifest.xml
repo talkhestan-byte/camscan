@@ -13,7 +13,10 @@
       android:supportsRtl="true"
       android:theme="@style/AppTheme"
       android:usesCleartextTraffic="true">
-    <activity
+  <activity
+    android:name=".PlayerActivity"
+    android:configChanges="orientation|screenSize|keyboardHidden"
+    android:theme="@android:style/Theme.NoTitleBar.Fullscreen"/>
         android:name=".MainActivity"
         android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
         android:exported="true"
