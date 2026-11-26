@@ -37,7 +37,7 @@ async function scan() {
   for (const dev of d.devices) {
     const doc = xml(dev.xml);
     const xaddr = tx(doc, 'XAddrs').split(/\s+/).find(u => u.startsWith('http'));
-    map.set(dev.ip, { ip: dev.ip, id: tx(doc, 'Address') || dev.ip, onvif: true, xaddr,
+    map.set(dev.ip, { ip: dev.ip, id: dev.ip, uuid: tx(doc, 'Address'), onvif: true, xaddr,
       scopes: tx(doc, 'Scopes'), types: tx(doc, 'Types'), ports: [] });
   }
   for (const h of s.hosts) {
@@ -50,10 +50,14 @@ async function scan() {
   $('#st').textContent = `${found.length} دستگاه پیدا شد؛ در حال دریافت جزئیات...`;
   await Promise.all(found.map(enrich));
 
-  // به‌روزرسانی IP دوربین‌های ذخیره‌شده (اگر IP عوض شده باشد)
+  // اگر IP دوربین ذخیره‌شده عوض شده باشد، با شناسه یکتای ONVIF پیدا می‌شود
   saved.forEach(sv => {
-    const f = found.find(c => c.id === sv.id);
-    if (f) { sv.ip = f.ip; if (f.rtsp) sv.rtsp = f.rtsp; sv.status = f.status; }
+    let f = found.find(c => c.ip === sv.ip);
+    if (!f && sv.uuid) {
+      const m = found.filter(c => c.uuid === sv.uuid);
+      if (m.length === 1) f = m[0];
+    }
+    if (f) { sv.ip = f.ip; sv.id = f.ip; if (f.rtsp) sv.rtsp = f.rtsp; sv.status = f.status; }
   });
   storeSaved(); render();
   $('#st').textContent = `${found.length} دوربین/دستگاه`;
@@ -121,13 +125,15 @@ function guessRtsp(c) {
 }
 function buildUrl(c, user, pass) {
   let url = c.rtsp || guessRtsp(c);
-  url = url.replace(/(rtsp:\/\/(?:[^@\/]*@)?)[^:\/]+/, '$1' + c.ip); // IP جدید
-  if (user && !/rtsp:\/\/[^\/]*@/.test(url))
+  url = url.replace(/(rtsp:\/\/(?:[^@\/]*@)?)[^:\/]+/, '$1' + c.ip);
+  const hasCred = /rtsp:\/\/[^\/]*@/.test(url) || /pass(word|wd)?=|pwd=/i.test(url);
+  if (user && !hasCred)
     url = url.replace('rtsp://', `rtsp://${encodeURIComponent(user)}:${encodeURIComponent(pass || '')}@`);
   return url;
 }
 function playCam(id, isSaved) {
   const c = find(id, isSaved);
+  if (!c) return err('دوربین پیدا نشد');
   const u = isSaved ? c.user : cred().user, p = isSaved ? c.pass : cred().pass;
   CamScan.play({ url: buildUrl(c, u, p), name: c.name || c.model || c.ip });
 }
@@ -138,8 +144,8 @@ function saveCam(id) {
   const name = prompt('نام دوربین:', c.model || c.ip);
   if (!name) return;
   const old = saved.findIndex(s => s.id === id);
-  const item = { id, name, ip: c.ip, rtsp: c.rtsp || '', brand: c.brand, model: c.model,
-    kind: c.kind, user: cred().user, pass: cred().pass, status: c.status };
+  const item = { id, uuid: c.uuid || '', name, ip: c.ip, rtsp: c.rtsp || '', brand: c.brand,
+    model: c.model, kind: c.kind, user: cred().user, pass: cred().pass, status: c.status };
   if (old >= 0) saved[old] = item; else saved.push(item);
   storeSaved(); render();
 }
@@ -184,4 +190,4 @@ async function refresh() {
   }));
 }
 render(); refresh(); setInterval(refresh, 15000);
-if (!CamScan) err('پلاگین CamScan ثبت نشده (MainActivity.java را چک کنید)');
+$('#st').textContent = CamScan ? 'نسخه ۲ ✓' : 'خطا: پلاگین CamScan ثبت نشده';
