@@ -2,7 +2,11 @@
 const showErr = m => { const e = document.getElementById('st'); if (e) e.textContent = 'خطا: ' + m; };
 window.onerror = (m, s, l) => showErr(m + ' (خط ' + l + ')');
 window.addEventListener('unhandledrejection', e => showErr(e.reason?.message || e.reason));
-const CamScan = Capacitor.registerPlugin('CamScan');
+const CamScan = Capacitor.Plugins.CamScan;
+if (!CamScan) {
+  const e = document.getElementById('st');
+  if (e) e.textContent = 'خطا: پلاگین CamScan ثبت نشده (MainActivity.java را چک کنید)';
+}
 const $ = s => document.querySelector(s);
 const cams = new Map();
 const cred = () => ({ user: $('#u').value, pass: $('#p').value });
