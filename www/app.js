@@ -1,3 +1,7 @@
+// نمایش خطا روی صفحه
+const showErr = m => { const e = document.getElementById('st'); if (e) e.textContent = 'خطا: ' + m; };
+window.onerror = (m, s, l) => showErr(m + ' (خط ' + l + ')');
+window.addEventListener('unhandledrejection', e => showErr(e.reason?.message || e.reason));
 const CamScan = Capacitor.registerPlugin('CamScan');
 const $ = s => document.querySelector(s);
 const cams = new Map();
