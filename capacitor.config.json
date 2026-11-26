@@ -1,0 +1,6 @@
+{
+  "appId": "com.camscan.app",
+  "appName": "CamScan",
+  "webDir": "www",
+  "bundledWebRuntime": false
+}
