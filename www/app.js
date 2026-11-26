@@ -181,13 +181,23 @@ function closeSnapshot() {
   if (shot) shot.style.display = 'none';
   if (image) image.removeAttribute('src');
 }
+function loadCredentials(id) {
+  const c = find(id, true);
+  if (!c) return err('دوربین ذخیره‌شده پیدا نشد');
+  $('#u').value = c.user || '';
+  $('#p').value = c.pass || '';
+  $('#st').textContent = c.user || c.pass
+    ? 'نام کاربری و رمز این دوربین در ورودی‌های بالای برنامه قرار گرفت.'
+    : 'برای این دوربین نام کاربری و رمز ذخیره نشده است؛ آن‌ها را دستی وارد و دوباره ذخیره کنید.';
+}
 function playCam(id, isSaved) {
   const c = find(id, isSaved);
   if (!c) return err('دوربین پیدا نشد');
-  // در دوربین‌های ذخیره‌شده نیز اگر رمز قبلاً ثبت نشده باشد از فیلدهای بالای صفحه استفاده کن
+  // هنگام انتخاب دوربین ذخیره‌شده، اعتبارنامه آن را در کادرهای بالای صفحه نیز قرار بده
+  if (isSaved) loadCredentials(id);
   const current = cred();
-  const u = (isSaved ? c.user : '') || current.user;
-  const p = (isSaved ? c.pass : '') || current.pass;
+  const u = current.user || (isSaved ? c.user : '');
+  const p = current.pass || (isSaved ? c.pass : '');
   if (!u || !p) {
     err('برای پخش تصویر، نام کاربری و رمز دوربین را در دو کادر بالای صفحه وارد کنید و دوباره پخش زنده را بزنید.');
     return;
@@ -230,7 +240,7 @@ function card(c, isSaved) {
       ${c.snapshot ? `<button class="g" onclick="snapshotCam('${c.id}',${isSaved})">▣ تصویر</button>` : ''}
       <button onclick="playCam('${c.id}',${isSaved})">▶ پخش زنده</button>
       ${isSaved
-        ? `<button class="g" onclick="renameCam('${c.id}')">✎ نام</button><button class="r" onclick="delCam('${c.id}')">🗑</button>`
+        ? `<button class="g" onclick="loadCredentials('${c.id}')">کپی نام کاربری و رمز</button><button class="g" onclick="renameCam('${c.id}')">✎ نام</button><button class="r" onclick="delCam('${c.id}')">🗑</button>`
         : `<button class="g" onclick="saveCam('${c.id}')">★ ذخیره</button>`}
     </div></div>`;
 }
