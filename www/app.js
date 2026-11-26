@@ -17,7 +17,7 @@ let saved = loadSaved(), found = [];
 const find = (id, isSaved) => (isSaved ? saved : found).find(c => c.id === id);
 
 // ---------- برند ----------
-const BRANDS = [[/hikvision|dvrdvs|app-webs|\bds-/i,'Hikvision'],[/dahua|\bdh-|ipc-h/i,'Dahua'],
+const BRANDS = [[/hikvision|dvrdvs|app-webs|\bds-/i,'Hikvision'],[/dahua|\bdh-|ipc-h/i,'Dahua'],[/herospeed|hero\s*speed/i,'HeroSpeed'],
  [/axis/i,'Axis'],[/uniview|unv/i,'Uniview'],[/tp-?link|tapo/i,'TP-Link'],[/reolink/i,'Reolink'],
  [/foscam/i,'Foscam'],[/hanwha|samsung|wisenet/i,'Hanwha'],[/bosch/i,'Bosch'],[/vivotek/i,'Vivotek'],
  [/d-?link/i,'D-Link'],[/ezviz/i,'EZVIZ'],[/xiaomi/i,'Xiaomi'],[/sony/i,'Sony'],
@@ -138,7 +138,7 @@ function guessRtsp(c) {
   else if (/dahua/.test(b)) path = '/cam/realmonitor?channel=1&subtype=0';
   else if (/uniview/.test(b)) path = '/media/video1';
   else if (/reolink/.test(b)) path = '/h264Preview_01_main';
-  else if (/herospeed|hero\s*speed/.test(b + ' ' + (c.model || ''))) path = '/0';
+  else if (/herospeed|hero\s*speed/i.test(b + ' ' + (c.model || '') + ' ' + (c.hint || '') + ' ' + (c.scopes || ''))) path = '/0';
   return `rtsp://${c.ip}:554${path}`;
 }
 function buildUrl(c, user, pass) {
@@ -193,7 +193,7 @@ function playCam(id, isSaved) {
     return;
   }
   // آدرس پیش‌فرض HeroSpeed در بیشتر مدل‌ها /0 است، نه /stream1
-  if (!c.rtsp && /herospeed|hero\s*speed/i.test((c.brand || '') + ' ' + (c.model || ''))) {
+  if (!c.rtsp && /herospeed|hero\s*speed/i.test((c.brand || '') + ' ' + (c.model || '') + ' ' + (c.hint || '') + ' ' + (c.scopes || ''))) {
     c.rtsp = `rtsp://${c.ip}:554/0`;
   }
   CamScan.play({ url: buildUrl(c, u, p), name: c.name || c.model || c.ip });
