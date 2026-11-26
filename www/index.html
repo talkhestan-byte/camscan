@@ -5,22 +5,23 @@
 <title>اسکنر دوربین</title>
 <style>
  body{font-family:sans-serif;margin:0;background:#111;color:#eee}
- header{padding:12px;background:#1d1d1d;position:sticky;top:0}
+ header{padding:12px;background:#1d1d1d;position:sticky;top:0;z-index:5}
  input{width:30%;padding:8px;margin:2px;border-radius:6px;border:0}
- button{padding:10px 16px;border:0;border-radius:8px;background:#2f7bff;color:#fff;font-size:15px}
+ button{padding:10px 14px;border:0;border-radius:8px;background:#2f7bff;color:#fff;font-size:15px;margin:2px}
+ button.g{background:#555}button.r{background:#c0392b}
+ h3{margin:14px 12px 0}
  .card{margin:10px;padding:12px;background:#1d1d1d;border-radius:12px}
- .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-left:6px}
+ .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-left:6px;background:#777}
  .online{background:#2ecc71}.offline{background:#e74c3c}.auth{background:#f1c40f}
- small{color:#aaa;display:block;margin-top:4px;direction:ltr;text-align:right;word-break:break-all}
- #viewer{display:none;position:fixed;inset:0;background:#000;z-index:9;text-align:center}
- #viewer img{width:100%;max-height:80vh;object-fit:contain}
+ small{color:#aaa;display:block;margin-top:4px}
+ .row{margin-top:8px}
 </style></head><body>
 <header>
  <input id="u" placeholder="نام کاربری"><input id="p" type="password" placeholder="رمز">
  <button onclick="scan()">جستجوی دوربین‌ها</button>
  <div id="st" style="margin-top:6px;font-size:13px"></div>
 </header>
-<div id="list"></div>
-<div id="viewer"><p id="vt"></p><img id="vi"><br><button onclick="closeView()">بستن</button></div>
+<h3>⭐ دوربین‌های من</h3><div id="mine"></div>
+<h3>نتایج جستجو</h3><div id="list"></div>
 <script src="app.js"></script>
 </body></html>
