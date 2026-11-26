@@ -25,8 +25,13 @@ const BRANDS = [[/hikvision|dvrdvs|app-webs|\bds-/i,'Hikvision'],[/dahua|\bdh-|i
 const PORT_HINT = { 37777: 'Dahua', 8000: 'Hikvision', 34567: 'Xiongmai' };
 const guessBrand = t => (BRANDS.find(([r]) => r.test(t || '')) || [])[1];
 
-const soap = (url, body) => CamScan.soap({ url, body, ...cred() });
+// ---------- ONVIF: اول بدون رمز، اگر رد شد با رمز ----------
 const authFail = r => r.status === 401 || /NotAuthorized|Sender not/i.test(r.text || '');
+async function soap(url, body) {
+  let r = await CamScan.soap({ url, body, user: '', pass: '' });
+  if (authFail(r) && cred().user) r = await CamScan.soap({ url, body, ...cred() });
+  return r;
+}
 
 // ---------- جستجو ----------
 async function scan() {
@@ -189,5 +194,6 @@ async function refresh() {
     } catch (e) {}
   }));
 }
+
 render(); refresh(); setInterval(refresh, 15000);
-$('#st').textContent = CamScan ? 'نسخه ۲ ✓' : 'خطا: پلاگین CamScan ثبت نشده';
+$('#st').textContent = CamScan ? 'نسخه ۳ ✓' : 'خطا: پلاگین CamScan ثبت نشده';
