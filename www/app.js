@@ -157,12 +157,21 @@ async function snapshotCam(id, isSaved) {
   try {
     const r = await CamScan.http({ url: c.snapshot, user: user || '', pass: pass || '', binary: true });
     if (r.status !== 200 || !r.b64) throw new Error('دوربین تصویر ثابت ارسال نکرد');
-    $('#shotImage').src = 'data:image/jpeg;base64,' + r.b64;
-    $('#shot').style.display = 'flex';
-    $('#st').textContent = 'تصویر Snapshot دریافت شد';
+    const shot = $('#shot');
+    const image = $('#shotImage');
+    if (!shot || !image) throw new Error('بخش نمایش تصویر در index.html وجود ندارد؛ فایل‌های برنامه هم‌نسخه نیستند.');
+    image.src = 'data:image/jpeg;base64,' + r.b64;
+    shot.style.display = 'flex';
+    const status = $('#st');
+    if (status) status.textContent = 'تصویر Snapshot دریافت شد';
   } catch (e) { err(e.message || 'دریافت تصویر Snapshot ناموفق بود'); }
 }
-function closeSnapshot() { $('#shot').style.display = 'none'; $('#shotImage').removeAttribute('src'); }
+function closeSnapshot() {
+  const shot = $('#shot');
+  const image = $('#shotImage');
+  if (shot) shot.style.display = 'none';
+  if (image) image.removeAttribute('src');
+}
 function playCam(id, isSaved) {
   const c = find(id, isSaved);
   if (!c) return err('دوربین پیدا نشد');
