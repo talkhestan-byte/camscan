@@ -1,5 +1,5 @@
 package com.camscan.app;
-
+import android.content.Intent;
 import android.content.Context;
 import android.net.wifi.WifiManager;
 import android.util.Base64;
@@ -33,6 +33,13 @@ public class CamScanPlugin extends Plugin {
 
   // --- WS-Discovery (ONVIF) ---
   @PluginMethod
+  public void play(PluginCall call) {
+    Intent i = new Intent(getActivity(), PlayerActivity.class);
+    i.putExtra("url", call.getString("url"));
+    i.putExtra("name", call.getString("name", ""));
+    getActivity().startActivity(i);
+    call.resolve();
+  }
   public void discover(PluginCall call) {
     new Thread(() -> {
       WifiManager wm = (WifiManager) getContext().getApplicationContext()
