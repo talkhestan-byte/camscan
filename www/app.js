@@ -138,15 +138,24 @@ function guessRtsp(c) {
   else if (/dahua/.test(b)) path = '/cam/realmonitor?channel=1&subtype=0';
   else if (/uniview/.test(b)) path = '/media/video1';
   else if (/reolink/.test(b)) path = '/h264Preview_01_main';
+  else if (/herospeed|hero\s*speed/.test(b + ' ' + (c.model || ''))) path = '/0';
   return `rtsp://${c.ip}:554${path}`;
 }
 function buildUrl(c, user, pass) {
   let url = c.rtsp || guessRtsp(c);
-  url = url.replace(/(rtsp:\/\/(?:[^@\/]*@)?)[^:\/]+/, '$1' + c.ip);
-  const hasCred = /rtsp:\/\/[^\/]*@/.test(url) || /pass(word|wd)?=|pwd=/i.test(url);
-  if (user && !hasCred)
-    url = url.replace('rtsp://', `rtsp://${encodeURIComponent(user)}:${encodeURIComponent(pass || '')}@`);
-  return url;
+  try {
+    const u = new URL(url);
+    u.hostname = c.ip;
+    // حذف اطلاعات ورود قدیمی از query و استفاده از اعتبارنامه فعلی
+    ['username', 'user', 'password', 'passwd', 'pwd'].forEach(k => u.searchParams.delete(k));
+    if (user) {
+      u.username = user;
+      u.password = pass || '';
+    }
+    return u.toString();
+  } catch (e) {
+    return url;
+  }
 }
 async function snapshotCam(id, isSaved) {
   const c = find(id, isSaved);
@@ -175,7 +184,18 @@ function closeSnapshot() {
 function playCam(id, isSaved) {
   const c = find(id, isSaved);
   if (!c) return err('دوربین پیدا نشد');
-  const u = isSaved ? c.user : cred().user, p = isSaved ? c.pass : cred().pass;
+  // در دوربین‌های ذخیره‌شده نیز اگر رمز قبلاً ثبت نشده باشد از فیلدهای بالای صفحه استفاده کن
+  const current = cred();
+  const u = (isSaved ? c.user : '') || current.user;
+  const p = (isSaved ? c.pass : '') || current.pass;
+  if (!u || !p) {
+    err('برای پخش تصویر، نام کاربری و رمز دوربین را در دو کادر بالای صفحه وارد کنید و دوباره پخش زنده را بزنید.');
+    return;
+  }
+  // آدرس پیش‌فرض HeroSpeed در بیشتر مدل‌ها /0 است، نه /stream1
+  if (!c.rtsp && /herospeed|hero\s*speed/i.test((c.brand || '') + ' ' + (c.model || ''))) {
+    c.rtsp = `rtsp://${c.ip}:554/0`;
+  }
   CamScan.play({ url: buildUrl(c, u, p), name: c.name || c.model || c.ip });
 }
 
