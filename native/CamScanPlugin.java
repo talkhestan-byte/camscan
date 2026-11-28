@@ -175,11 +175,11 @@ public class CamScanPlugin extends Plugin {
     String ha2 = md5(method + ":" + uri);
     String response = qop.isEmpty() ? md5(ha1 + ":" + nonce + ":" + ha2)
         : md5(ha1 + ":" + nonce + ":" + nc + ":" + cnonce + ":" + qop + ":" + ha2);
-    StringBuilder h = new StringBuilder("Digest username=\\\"").append(user.replace("\\", "\\\\").replace("\\\"", "\\\\\""))
-        .append("\\\", realm=\\\"").append(realm).append("\\\", nonce=\\\"").append(nonce)
-        .append("\\\", uri=\\\"").append(uri).append("\\\", response=\\\"").append(response).append("\\\"");
-    if (qop.length() > 0) h.append(", qop=").append(qop).append(", nc=").append(nc).append(", cnonce=\\\"").append(cnonce).append("\\\"");
-    if (p.containsKey("opaque")) h.append(", opaque=\\\"").append(p.get("opaque")).append("\\\"");
+    StringBuilder h = new StringBuilder("Digest username=\"").append(user.replace("\\", "\\\\").replace("\"", "\\\""))
+        .append("\", realm=\"").append(realm).append("\", nonce=\"").append(nonce)
+        .append("\", uri=\"").append(uri).append("\", response=\"").append(response).append("\"");
+    if (qop.length() > 0) h.append(", qop=").append(qop).append(", nc=").append(nc).append(", cnonce=\"").append(cnonce).append("\"");
+    if (p.containsKey("opaque")) h.append(", opaque=\"").append(p.get("opaque")).append("\"");
     h.append(", algorithm=").append(algorithm);
     return h.toString();
   }
@@ -234,7 +234,7 @@ public class CamScanPlugin extends Plugin {
   static String xmlEscape(String value) {
     if (value == null) return "";
     return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        .replace("\\\"", "&quot;").replace("'", "&apos;");
+        .replace("\"", "&quot;").replace("'", "&apos;");
   }
 
   @PluginMethod
