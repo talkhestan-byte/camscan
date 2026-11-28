@@ -181,6 +181,7 @@ function closeSnapshot() {
   if (shot) shot.style.display = 'none';
   if (image) image.removeAttribute('src');
 }
+function togglePassword() { $('#p').type = $('#p').type === 'password' ? 'text' : 'password'; }
 function loadCredentials(id) {
   const c = find(id, true);
   if (!c) return err('دوربین ذخیره‌شده پیدا نشد');
@@ -240,7 +241,7 @@ function card(c, isSaved) {
       ${c.snapshot ? `<button class="g" onclick="snapshotCam('${c.id}',${isSaved})">▣ تصویر</button>` : ''}
       <button onclick="playCam('${c.id}',${isSaved})">▶ پخش زنده</button>
       ${isSaved
-        ? `<button class="g" onclick="loadCredentials('${c.id}')">کپی نام کاربری و رمز</button><button class="g" onclick="renameCam('${c.id}')">✎ نام</button><button class="r" onclick="delCam('${c.id}')">🗑</button>`
+        ? `<button class="g" onclick="loadCredentials('${c.id}')">نمایش رمز و اطلاعات</button><button class="g" onclick="renameCam('${c.id}')">✎ نام</button><button class="r" onclick="delCam('${c.id}')">🗑</button>`
         : `<button class="g" onclick="saveCam('${c.id}')">★ ذخیره</button>`}
     </div></div>`;
 }
