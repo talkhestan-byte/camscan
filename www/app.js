@@ -69,7 +69,14 @@ async function scan() {
       const m = found.filter(c => c.uuid === sv.uuid);
       if (m.length === 1) f = m[0];
     }
-    if (f) { sv.ip = f.ip; sv.id = f.ip; if (f.rtsp) sv.rtsp = f.rtsp; if (f.snapshot) sv.snapshot = f.snapshot; sv.status = f.status; }
+    if (f) {
+      sv.ip = f.ip; sv.id = f.ip;
+      if (f.rtsp) sv.rtsp = f.rtsp;
+      if (f.snapshot) sv.snapshot = f.snapshot;
+      sv.ports = f.ports || sv.ports || [];
+      sv.mainPort = f.mainPort || sv.mainPort || 554;
+      sv.status = f.status;
+    }
   });
   storeSaved(); render();
   $('#st').textContent = `${found.length} دوربین/دستگاه`;
@@ -265,7 +272,7 @@ function saveCam(id) {
   const name = prompt('نام دوربین:', c.model || c.ip);
   if (!name) return;
   const old = saved.findIndex(s => s.id === id);
-  const item = { id, uuid: c.uuid || '', name, ip: c.ip, rtsp: c.rtsp || '', snapshot: c.snapshot || '', brand: c.brand,
+  const item = { id, uuid: c.uuid || '', name, ip: c.ip, ports: c.ports || [], mainPort: c.mainPort || 554, rtsp: c.rtsp || '', snapshot: c.snapshot || '', brand: c.brand,
     model: c.model, kind: c.kind, user: cred().user, pass: cred().pass, status: c.status };
   if (old >= 0) saved[old] = item; else saved.push(item);
   storeSaved(); render();
@@ -305,7 +312,7 @@ async function refresh() {
   if (!CamScan) return;
   await Promise.all([...saved, ...found].map(async c => {
     try {
-      const { open } = await CamScan.tcp({ ip: c.ip, port: c.mainPort || 554 });
+      const { open } = await CamScan.tcp({ ip: c.ip, port: c.mainPort || (c.ports || []).find(p => [554, 8554, 10554].includes(p)) || 554 });
       c.status = open ? (c.status === 'auth' ? 'auth' : 'online') : 'offline';
       document.querySelectorAll(`.dot[data-ip="${c.ip}"]`).forEach(e => e.className = 'dot ' + c.status);
     } catch (e) {}
