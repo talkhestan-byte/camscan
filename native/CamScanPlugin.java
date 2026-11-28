@@ -166,7 +166,10 @@ public class CamScanPlugin extends Plugin {
     if (realm == null || nonce == null) return null;
     String algorithm = p.getOrDefault("algorithm", "MD5");
     String qopList = p.getOrDefault("qop", "");
-    String qop = qopList.contains("auth") ? "auth" : "";
+    boolean supportsAuth = false;
+    for (String item : qopList.split(",")) if ("auth".equals(item.trim())) supportsAuth = true;
+    if (!qopList.isEmpty() && !supportsAuth) return null;
+    String qop = supportsAuth ? "auth" : "";
     String cnonce = UUID.randomUUID().toString().replace("-", "");
     String nc = "00000001";
     String ha1 = md5(user + ":" + realm + ":" + pass);
