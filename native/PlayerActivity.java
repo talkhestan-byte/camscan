@@ -79,7 +79,7 @@ public class PlayerActivity extends Activity {
     if (attemptTimeout != null) handler.removeCallbacks(attemptTimeout);
     if (attemptIndex >= urls.size()) {
       playingStarted = false;
-      info.setText("اتصال ناموفق؛ مسیرهای تصویر دوربین پاسخ ندادند");
+      info.setText("اتصال برقرار نشد؛ دوربین پاسخ نداد یا دسترسی آن محدود است");
       recBtn.setEnabled(false);
       return;
     }
@@ -95,7 +95,7 @@ public class PlayerActivity extends Activity {
       final int thisAttempt = attemptIndex;
       attemptTimeout = () -> {
         if (!isFinishing() && !playingStarted && attemptIndex == thisAttempt) {
-          info.setText("مهلت اتصال تمام شد؛ مسیر بعدی...");
+          info.setText("در حال آزمایش مسیر بعدی تصویر...");
           attemptIndex++;
           startNextStream();
         }
