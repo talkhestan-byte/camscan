@@ -7,7 +7,7 @@ const $ = s => document.querySelector(s);
 const xml = t => new DOMParser().parseFromString(t, 'text/xml');
 const tx = (d, tag) => d.getElementsByTagNameNS('*', tag)[0]?.textContent || '';
 const MEDIA = 'http://www.onvif.org/ver10/media/wsdl';
-const cred = () => ({ user: $('#u').value, pass: $('#p').value });
+// اعتبارنامه فقط از اطلاعاتی که قبلاً برای همان دوربین ذخیره شده باشد استفاده می‌شود.
 
 // ---------- ذخیره‌سازی ----------
 const KEY = 'camscan_saved';
@@ -28,8 +28,8 @@ const guessBrand = t => (BRANDS.find(([r]) => r.test(t || '')) || [])[1];
 // ---------- ONVIF: اول بدون رمز، اگر رد شد با رمز ----------
 const authFail = r => r.status === 401 || /NotAuthorized|Not Authorized|Sender not|ter:NotAuthorized/i.test(r.text || '');
 const credentialsFor = c => ({
-  user: (c && c.user) || cred().user || '',
-  pass: (c && c.pass) || cred().pass || ''
+  user: (c && c.user) || '',
+  pass: (c && c.pass) || ''
 });
 async function soap(url, body, camera) {
   let r = await CamScan.soap({ url, body, user: '', pass: '' });
@@ -217,21 +217,34 @@ function rtspCandidates(c, user, pass) {
 async function snapshotCam(id, isSaved) {
   const c = find(id, isSaved);
   if (!c) return err('دوربین پیدا نشد');
-  if (!c.snapshot) return err('آدرس Snapshot از دوربین دریافت نشد؛ رمز را وارد کنید و دوباره جستجو کنید. برای تصویر زنده از RTSP استفاده کنید.');
   const auth = credentialsFor(isSaved ? c : null);
-  const user = auth.user;
-  const pass = auth.pass;
-  try {
-    const r = await CamScan.http({ url: c.snapshot, user: user || '', pass: pass || '', binary: true });
-    if (r.status !== 200 || !r.b64) throw new Error('دوربین تصویر ثابت ارسال نکرد');
-    const shot = $('#shot');
-    const image = $('#shotImage');
-    if (!shot || !image) throw new Error('بخش نمایش تصویر در index.html وجود ندارد؛ فایل‌های برنامه هم‌نسخه نیستند.');
-    image.src = 'data:image/jpeg;base64,' + r.b64;
-    shot.style.display = 'flex';
-    const status = $('#st');
-    if (status) status.textContent = 'تصویر Snapshot دریافت شد';
-  } catch (e) { err(e.message || 'دریافت تصویر Snapshot ناموفق بود'); }
+  const port = c.mainPort || (c.ports || []).find(p => [80, 8080].includes(p)) || 80;
+  const brand = ((c.brand || '') + ' ' + (c.model || '')).toLowerCase();
+  const candidates = [];
+  if (c.snapshot) candidates.push(c.snapshot);
+  const paths = [];
+  if (/hikvision|hiwatch/.test(brand)) paths.push('/ISAPI/Streaming/channels/101/picture');
+  if (/dahua|imou/.test(brand)) paths.push('/cgi-bin/snapshot.cgi?channel=1');
+  if (/axis/.test(brand)) paths.push('/axis-cgi/jpg/image.cgi');
+  if (/foscam/.test(brand)) paths.push('/cgi-bin/CGIProxy.fcgi?cmd=snapPicture2');
+  paths.push('/snapshot.jpg', '/jpg/image.jpg', '/cgi-bin/snapshot.cgi');
+  paths.forEach(path => candidates.push('http://' + c.ip + ':' + port + path));
+  const shot = $('#shot'), image = $('#shotImage');
+  if (!shot || !image) return err('بخش نمایش تصویر در برنامه وجود ندارد.');
+  $('#st').textContent = 'در حال دریافت تصویر...';
+  for (const url of [...new Set(candidates)]) {
+    try {
+      const r = await CamScan.http({ url, user: auth.user, pass: auth.pass, binary: true });
+      if (r.status === 200 && r.b64) {
+        image.src = 'data:image/jpeg;base64,' + r.b64;
+        shot.style.display = 'flex';
+        $('#st').textContent = 'تصویر دوربین دریافت شد';
+        return;
+      }
+    } catch (e) {}
+  }
+  err('این دوربین آدرس تصویر ثابت قابل‌دسترسی ارائه نکرد؛ دکمه پخش زنده را امتحان کنید.');
+
 }
 function closeSnapshot() {
   const shot = $('#shot');
@@ -239,40 +252,13 @@ function closeSnapshot() {
   if (shot) shot.style.display = 'none';
   if (image) image.removeAttribute('src');
 }
-function togglePassword() {
-  const p = $('#p');
-  if (p) p.type = p.type === 'password' ? 'text' : 'password';
-}
-async function copyPassword() {
-  const value = $('#p')?.value || '';
-  if (!value) return err('رمزی برای کپی وجود ندارد');
-  try {
-    await navigator.clipboard.writeText(value);
-    $('#st').textContent = 'رمز کپی شد';
-  } catch (e) {
-    $('#p').focus(); $('#p').select();
-    try { document.execCommand('copy'); $('#st').textContent = 'رمز کپی شد'; }
-    catch (_) { err('کپی خودکار ممکن نشد؛ رمز را انتخاب و کپی کنید'); }
-  }
-}
-function loadCredentials(id) {
-  const c = find(id, true);
-  if (!c) return err('دوربین ذخیره‌شده پیدا نشد');
-  $('#u').value = c.user || '';
-  $('#p').value = c.pass || '';
-  $('#p').type = 'text';
-  $('#st').textContent = c.user || c.pass
-    ? 'نام کاربری و رمز این دوربین در ورودی‌های بالای برنامه قرار گرفت.'
-    : 'برای این دوربین نام کاربری و رمز ذخیره نشده است؛ آن‌ها را دستی وارد و دوباره ذخیره کنید.';
-}
 function playCam(id, isSaved) {
   const c = find(id, isSaved);
   if (!c) return err('دوربین پیدا نشد');
-  if (isSaved) loadCredentials(id);
-  const auth = credentialsFor(isSaved ? c : null);
+  const auth = credentialsFor(c);
   const urls = rtspCandidates(c, auth.user, auth.pass);
-  if (!urls.length) return err('هیچ مسیر RTSP برای این دوربین پیدا نشد');
-  $('#st').textContent = 'در حال آزمایش مسیرهای تصویر دوربین...';
+  if (!urls.length) return err('مسیر تصویر این دوربین شناسایی نشد');
+  $('#st').textContent = 'در حال باز کردن پخش زنده...';
   CamScan.play({ urls, url: urls[0], name: c.name || c.model || c.ip });
 }
 
@@ -283,7 +269,7 @@ function saveCam(id) {
   if (!name) return;
   const old = saved.findIndex(s => s.id === id);
   const item = { id, uuid: c.uuid || '', name, ip: c.ip, ports: c.ports || [], mainPort: c.mainPort || 554, rtsp: c.rtsp || '', rtspList: c.rtspList || [], snapshot: c.snapshot || '', brand: c.brand,
-    model: c.model, kind: c.kind, user: cred().user, pass: cred().pass, status: c.status };
+    model: c.model, kind: c.kind, user: c.user || '', pass: c.pass || '', status: c.status };
   if (old >= 0) saved[old] = item; else saved.push(item);
   storeSaved(); render();
 }
@@ -304,10 +290,10 @@ function card(c, isSaved) {
     <div>${c.brand || ''} ${c.model || ''} ${c.kind ? '— ' + c.kind : ''}</div>
     <small>${c.ip}</small>
     <div class="row">
-      ${c.snapshot ? `<button class="g" onclick="snapshotCam('${c.id}',${isSaved})">▣ تصویر</button>` : ''}
+      <button class="g" onclick="snapshotCam('${c.id}',${isSaved})">▣ تصویر</button>
       <button onclick="playCam('${c.id}',${isSaved})">▶ پخش زنده</button>
       ${isSaved
-        ? `<button class="g" onclick="loadCredentials('${c.id}')">نمایش رمز و اطلاعات</button><button class="g" onclick="renameCam('${c.id}')">✎ نام</button><button class="r" onclick="delCam('${c.id}')">🗑</button>`
+        ? `<button class="g" onclick="renameCam('${c.id}')">✎ نام</button><button class="r" onclick="delCam('${c.id}')">🗑</button>`
         : `<button class="g" onclick="saveCam('${c.id}')">★ ذخیره</button>`}
     </div></div>`;
 }
