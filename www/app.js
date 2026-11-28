@@ -55,7 +55,7 @@ async function scan() {
   for (const h of s.hosts) {
     const c = map.get(h.ip);
     if (c) c.ports = h.ports;
-    else if (h.ports.some(p => [554, 8000, 8899, 34567, 37777].includes(p)))
+    else if (h.ports.some(p => [554, 8554, 10554, 8000, 8899, 34567, 37777].includes(p)))
       map.set(h.ip, { ip: h.ip, id: h.ip, onvif: false, ports: h.ports, scopes: '', types: '' });
   }
   found = [...map.values()];
@@ -183,9 +183,15 @@ function rtspCandidates(c, user, pass) {
   const urls = [];
   const add = value => {
     if (!value) return;
-    let u = value;
-    if (u.startsWith('/')) u = 'rtsp://' + c.ip + ':554' + u;
-    u = buildUrl(u, c, user, pass);
+    if (value.startsWith('/')) {
+      const ports = [554, ...new Set((c.ports || []).filter(p => [8554, 10554].includes(p)))];
+      ports.forEach(port => {
+        const u = buildUrl('rtsp://' + c.ip + ':' + port + value, c, user, pass);
+        if (!urls.includes(u)) urls.push(u);
+      });
+      return;
+    }
+    const u = buildUrl(value, c, user, pass);
     if (!urls.includes(u)) urls.push(u);
   };
   paths.forEach(add);
