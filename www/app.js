@@ -26,10 +26,17 @@ const PORT_HINT = { 37777: 'Dahua', 8000: 'Hikvision', 34567: 'Xiongmai' };
 const guessBrand = t => (BRANDS.find(([r]) => r.test(t || '')) || [])[1];
 
 // ---------- ONVIF: اول بدون رمز، اگر رد شد با رمز ----------
-const authFail = r => r.status === 401 || /NotAuthorized|Sender not/i.test(r.text || '');
-async function soap(url, body) {
+const authFail = r => r.status === 401 || /NotAuthorized|Not Authorized|Sender not|ter:NotAuthorized/i.test(r.text || '');
+const credentialsFor = c => ({
+  user: (c && c.user) || cred().user || '',
+  pass: (c && c.pass) || cred().pass || ''
+});
+async function soap(url, body, camera) {
   let r = await CamScan.soap({ url, body, user: '', pass: '' });
-  if (authFail(r) && cred().user) r = await CamScan.soap({ url, body, ...cred() });
+  if (authFail(r)) {
+    const a = credentialsFor(camera);
+    if (a.user) r = await CamScan.soap({ url, body, ...a });
+  }
   return r;
 }
 
@@ -73,7 +80,7 @@ async function enrich(c) {
   c.mainPort = c.ports.find(p => [80, 8080].includes(p)) || c.ports[0] || 80;
   if (c.xaddr) {
     try {
-      const r = await soap(c.xaddr, '<GetDeviceInformation xmlns="http://www.onvif.org/ver10/device/wsdl"/>');
+      const r = await soap(c.xaddr, '<GetDeviceInformation xmlns="http://www.onvif.org/ver10/device/wsdl"/>', c);
       if (r.status === 200) {
         const d = xml(r.text);
         c.brand = tx(d, 'Manufacturer'); c.model = tx(d, 'Model'); c.fw = tx(d, 'FirmwareVersion');
@@ -101,11 +108,11 @@ async function enrich(c) {
 
 async function onvifMedia(c) {
   try {
-    let r = await soap(c.xaddr, '<GetCapabilities xmlns="http://www.onvif.org/ver10/device/wsdl"><Category>All</Category></GetCapabilities>');
+    let r = await soap(c.xaddr, '<GetCapabilities xmlns="http://www.onvif.org/ver10/device/wsdl"><Category>All</Category></GetCapabilities>', c);
     const d = xml(r.text);
     const media = [...d.getElementsByTagNameNS('*', 'XAddr')].map(e => e.textContent).find(u => /media/i.test(u)) || c.xaddr;
     c.ptz = d.getElementsByTagNameNS('*', 'PTZ').length > 0;
-    r = await soap(media, `<GetProfiles xmlns="${MEDIA}"/>`);
+    r = await soap(media, `<GetProfiles xmlns="${MEDIA}"/>`, c);
     const pd = xml(r.text);
     const tok = pd.getElementsByTagNameNS('*', 'Profiles')[0]?.getAttribute('token');
     if (!tok) return;
@@ -113,7 +120,7 @@ async function onvifMedia(c) {
 
     // دریافت آدرس تصویر ثابت از سرویس استاندارد ONVIF
     try {
-      const sr = await soap(media, `<GetSnapshotUri xmlns="${MEDIA}"><ProfileToken>${tok}</ProfileToken></GetSnapshotUri>`);
+      const sr = await soap(media, `<GetSnapshotUri xmlns="${MEDIA}"><ProfileToken>${tok}</ProfileToken></GetSnapshotUri>`, c);
       const snapshot = tx(xml(sr.text), 'Uri');
       if (sr.status === 200 && snapshot) {
         const u = new URL(snapshot);
@@ -125,7 +132,7 @@ async function onvifMedia(c) {
     r = await soap(media, `<GetStreamUri xmlns="${MEDIA}"><StreamSetup>
       <Stream xmlns="http://www.onvif.org/ver10/schema">RTP-Unicast</Stream>
       <Transport xmlns="http://www.onvif.org/ver10/schema"><Protocol>RTSP</Protocol></Transport>
-      </StreamSetup><ProfileToken>${tok}</ProfileToken></GetStreamUri>`);
+      </StreamSetup><ProfileToken>${tok}</ProfileToken></GetStreamUri>`, c);
     c.rtsp = tx(xml(r.text), 'Uri');
   } catch (e) {}
 }
@@ -141,14 +148,13 @@ function guessRtsp(c) {
   else if (/herospeed|hero\s*speed/i.test(b + ' ' + (c.model || '') + ' ' + (c.hint || '') + ' ' + (c.scopes || ''))) path = '/0';
   return `rtsp://${c.ip}:554${path}`;
 }
-function buildUrl(c, user, pass) {
-  let url = c.rtsp || guessRtsp(c);
+function buildUrl(url, c, user, pass) {
   try {
     const u = new URL(url);
+    // فقط میزبان را با IP کشف‌شده هماهنگ می‌کنیم؛ پورت، مسیر و query دوربین دست‌نخورده می‌ماند.
     u.hostname = c.ip;
-    // حذف اطلاعات ورود قدیمی از query و استفاده از اعتبارنامه فعلی
-    ['username', 'user', 'password', 'passwd', 'pwd'].forEach(k => u.searchParams.delete(k));
-    if (user) {
+    // اگر خود URI اطلاعات ورود دارد، آن را حفظ می‌کنیم؛ در غیر این صورت از اطلاعات دوربین استفاده می‌کنیم.
+    if (!u.username && user) {
       u.username = user;
       u.password = pass || '';
     }
@@ -157,12 +163,41 @@ function buildUrl(c, user, pass) {
     return url;
   }
 }
+function rtspCandidates(c, user, pass) {
+  const b = ((c.brand || '') + ' ' + (c.model || '') + ' ' + (c.hint || '') + ' ' + (c.scopes || '')).toLowerCase();
+  const paths = [];
+  if (c.rtsp) paths.push(c.rtsp);
+  if (/hikvision|hiwatch/.test(b)) paths.push(
+    '/Streaming/Channels/101','/Streaming/Channels/102','/h264/ch1/main/av_stream'
+  );
+  if (/dahua|imou/.test(b)) paths.push(
+    '/cam/realmonitor?channel=1&subtype=0','/cam/realmonitor?channel=1&subtype=1'
+  );
+  if (/herospeed|hero\s*speed/.test(b)) paths.push('/0','/live/ch00_0');
+  if (/uniview|\bunv\b/.test(b)) paths.push('/media/video1','/unicast/c1/s0/live');
+  if (/reolink/.test(b)) paths.push('/h264Preview_01_main','/h264Preview_01_sub');
+  if (/axis/.test(b)) paths.push('/axis-media/media.amp');
+  if (/foscam/.test(b)) paths.push('/videoMain','/videoSub');
+  if (/tp-?link|tapo/.test(b)) paths.push('/stream1','/stream2');
+  paths.push('/stream1','/live','/live/ch00_0','/Streaming/Channels/101');
+  const urls = [];
+  const add = value => {
+    if (!value) return;
+    let u = value;
+    if (u.startsWith('/')) u = 'rtsp://' + c.ip + ':554' + u;
+    u = buildUrl(u, c, user, pass);
+    if (!urls.includes(u)) urls.push(u);
+  };
+  paths.forEach(add);
+  return urls.slice(0, 10);
+}
 async function snapshotCam(id, isSaved) {
   const c = find(id, isSaved);
   if (!c) return err('دوربین پیدا نشد');
   if (!c.snapshot) return err('آدرس Snapshot از دوربین دریافت نشد؛ رمز را وارد کنید و دوباره جستجو کنید. برای تصویر زنده از RTSP استفاده کنید.');
-  const user = isSaved ? c.user : cred().user;
-  const pass = isSaved ? c.pass : cred().pass;
+  const auth = credentialsFor(isSaved ? c : null);
+  const user = auth.user;
+  const pass = auth.pass;
   try {
     const r = await CamScan.http({ url: c.snapshot, user: user || '', pass: pass || '', binary: true });
     if (r.status !== 200 || !r.b64) throw new Error('دوربین تصویر ثابت ارسال نکرد');
@@ -181,12 +216,28 @@ function closeSnapshot() {
   if (shot) shot.style.display = 'none';
   if (image) image.removeAttribute('src');
 }
-function togglePassword() { $('#p').type = $('#p').type === 'password' ? 'text' : 'password'; }
+function togglePassword() {
+  const p = $('#p');
+  if (p) p.type = p.type === 'password' ? 'text' : 'password';
+}
+async function copyPassword() {
+  const value = $('#p')?.value || '';
+  if (!value) return err('رمزی برای کپی وجود ندارد');
+  try {
+    await navigator.clipboard.writeText(value);
+    $('#st').textContent = 'رمز کپی شد';
+  } catch (e) {
+    $('#p').focus(); $('#p').select();
+    try { document.execCommand('copy'); $('#st').textContent = 'رمز کپی شد'; }
+    catch (_) { err('کپی خودکار ممکن نشد؛ رمز را انتخاب و کپی کنید'); }
+  }
+}
 function loadCredentials(id) {
   const c = find(id, true);
   if (!c) return err('دوربین ذخیره‌شده پیدا نشد');
   $('#u').value = c.user || '';
   $('#p').value = c.pass || '';
+  $('#p').type = 'text';
   $('#st').textContent = c.user || c.pass
     ? 'نام کاربری و رمز این دوربین در ورودی‌های بالای برنامه قرار گرفت.'
     : 'برای این دوربین نام کاربری و رمز ذخیره نشده است؛ آن‌ها را دستی وارد و دوباره ذخیره کنید.';
@@ -194,20 +245,12 @@ function loadCredentials(id) {
 function playCam(id, isSaved) {
   const c = find(id, isSaved);
   if (!c) return err('دوربین پیدا نشد');
-  // هنگام انتخاب دوربین ذخیره‌شده، اعتبارنامه آن را در کادرهای بالای صفحه نیز قرار بده
   if (isSaved) loadCredentials(id);
-  const current = cred();
-  const u = current.user || (isSaved ? c.user : '');
-  const p = current.pass || (isSaved ? c.pass : '');
-  if (!u || !p) {
-    err('برای پخش تصویر، نام کاربری و رمز دوربین را در دو کادر بالای صفحه وارد کنید و دوباره پخش زنده را بزنید.');
-    return;
-  }
-  // آدرس پیش‌فرض HeroSpeed در بیشتر مدل‌ها /0 است، نه /stream1
-  if (!c.rtsp && /herospeed|hero\s*speed/i.test((c.brand || '') + ' ' + (c.model || '') + ' ' + (c.hint || '') + ' ' + (c.scopes || ''))) {
-    c.rtsp = `rtsp://${c.ip}:554/0`;
-  }
-  CamScan.play({ url: buildUrl(c, u, p), name: c.name || c.model || c.ip });
+  const auth = credentialsFor(isSaved ? c : null);
+  const urls = rtspCandidates(c, auth.user, auth.pass);
+  if (!urls.length) return err('هیچ مسیر RTSP برای این دوربین پیدا نشد');
+  $('#st').textContent = 'در حال آزمایش مسیرهای تصویر دوربین...';
+  CamScan.play({ urls, url: urls[0], name: c.name || c.model || c.ip });
 }
 
 // ---------- نام‌گذاری و ذخیره ----------
