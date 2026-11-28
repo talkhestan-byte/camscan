@@ -16,6 +16,11 @@
  .online{background:#2ecc71}.offline{background:#e74c3c}.auth{background:#f1c40f}
  small{color:#aaa;display:block;margin-top:4px}
  .row{margin-top:8px}
+ .credentials{margin-top:7px;padding:7px 9px;background:#292929;border-radius:7px;font-size:13px;line-height:1.9;color:#ddd}
+ .selectCam{display:block;margin-top:8px;font-size:13px;color:#f2f2f2}
+ .selectCam input{width:auto;min-width:0;margin-left:6px;vertical-align:middle}
+ #multiBar{margin:12px;padding:10px;background:#202020;border-radius:10px}
+ #multiBar button{width:100%}
  #shot{display:none;position:fixed;inset:0;z-index:20;background:#000e;align-items:center;justify-content:center;padding:16px;box-sizing:border-box}
  #shotBox{width:100%;max-width:700px;background:#222;border-radius:12px;padding:10px;box-sizing:border-box}
  #shotImage{display:block;width:100%;max-height:75vh;object-fit:contain;background:#000}
@@ -25,6 +30,7 @@
  <button onclick="scan()">جستجوی دوربین‌ها</button>
  <div id="st" style="margin-top:6px;font-size:13px"></div>
 </header>
+<div id="multiBar"><button onclick="playSelectedCameras()">▶ پخش هم‌زمان دوربین‌های انتخاب‌شده (حداکثر ۴ دوربین)</button><small>برای هر دوربین، گزینه «انتخاب برای پخش هم‌زمان» را فعال کن.</small></div>
 <h3>⭐ دوربین‌های من</h3><div id="mine"></div>
 <h3>نتایج جستجو</h3><div id="list"></div>
 <div id="shot" onclick="if(event.target===this)closeSnapshot()">
