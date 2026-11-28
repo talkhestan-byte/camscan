@@ -59,6 +59,16 @@ async function scan() {
       map.set(h.ip, { ip: h.ip, id: h.ip, onvif: false, ports: h.ports, scopes: '', types: '' });
   }
   found = [...map.values()];
+
+  // اعتبارنامه‌های قبلاً ذخیره‌شده، بدون نمایش یا درخواست مجدد، به دستگاه شناسایی‌شده متصل می‌شوند.
+  found.forEach(c => {
+    const matches = saved.filter(sv => sv.ip === c.ip || (sv.uuid && c.uuid && sv.uuid === c.uuid));
+    if (matches.length === 1) {
+      c.user = matches[0].user || '';
+      c.pass = matches[0].pass || '';
+    }
+  });
+
   $('#st').textContent = `${found.length} دستگاه پیدا شد؛ در حال دریافت جزئیات...`;
   await Promise.all(found.map(enrich));
 
