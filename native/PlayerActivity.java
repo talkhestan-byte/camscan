@@ -18,11 +18,20 @@ import java.util.ArrayList;
 public class PlayerActivity extends Activity {
   LibVLC vlc; MediaPlayer mp; boolean rec = false;
   Button recBtn; TextView info; File dir;
+  ArrayList<String> urls = new ArrayList<>();
+  int attemptIndex = 0;
+  boolean playingStarted = false;
+  final Handler handler = new Handler(Looper.getMainLooper());
+  Runnable attemptTimeout;
 
   @Override protected void onCreate(Bundle b) {
     super.onCreate(b);
     getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     String url = getIntent().getStringExtra("url");
+    ArrayList<String> supplied = getIntent().getStringArrayListExtra("urls");
+    if (supplied != null) for (String value : supplied)
+      if (value != null && !value.trim().isEmpty() && !urls.contains(value)) urls.add(value);
+    if (urls.isEmpty() && url != null && !url.trim().isEmpty()) urls.add(url);
     final String name = getIntent().getStringExtra("name");
     dir = new File(getExternalFilesDir(Environment.DIRECTORY_MOVIES), "CamScan");
     dir.mkdirs();
@@ -48,21 +57,77 @@ public class PlayerActivity extends Activity {
 
     ArrayList<String> opts = new ArrayList<>();
     opts.add("--rtsp-tcp");
-    opts.add("--network-caching=400");
+    opts.add("--network-caching=900");
+    opts.add("--live-caching=900");
     vlc = new LibVLC(this, opts);
     mp = new MediaPlayer(vlc);
     mp.attachViews(video, null, false, false);
-    Media m = new Media(vlc, Uri.parse(url));
-    m.setHWDecoderEnabled(true, false);
-    mp.setMedia(m); m.release();
-    mp.setEventListener(ev -> runOnUiThread(() -> {
-      if (ev.type == MediaPlayer.Event.Playing) info.setText(name + "  ●");
-      else if (ev.type == MediaPlayer.Event.EncounteredError) info.setText("خطا در اتصال به دوربین");
-    }));
-    mp.play();
+    mp.setEventListener(ev -> runOnUiThread(() -> handleVlcEvent(ev.type)));
 
+    recBtn.setEnabled(false);
     recBtn.setOnClickListener(v -> toggleRecord());
     close.setOnClickListener(v -> finish());
+    if (urls.isEmpty()) {
+      info.setText("آدرس تصویر دوربین دریافت نشد");
+      recBtn.setEnabled(false);
+    } else {
+      startNextStream();
+    }
+  }
+
+  void startNextStream() {
+    handler.removeCallbacks(attemptTimeout == null ? () -> {} : attemptTimeout);
+    if (attemptIndex >= urls.size()) {
+      playingStarted = false;
+      info.setText("اتصال ناموفق؛ مسیرهای تصویر دوربین پاسخ ندادند");
+      recBtn.setEnabled(false);
+      return;
+    }
+    playingStarted = false;
+    String current = urls.get(attemptIndex);
+    info.setText("آزمایش مسیر " + (attemptIndex + 1) + " از " + urls.size() + " ...");
+    try { mp.stop(); } catch (Exception ignored) {}
+    try {
+      Media media = new Media(vlc, Uri.parse(current));
+      media.setHWDecoderEnabled(true, false);
+      mp.setMedia(media);
+      media.release();
+      final int thisAttempt = attemptIndex;
+      attemptTimeout = () -> {
+        if (!isFinishing() && !playingStarted && attemptIndex == thisAttempt) {
+          info.setText("مهلت اتصال تمام شد؛ مسیر بعدی...");
+          attemptIndex++;
+          startNextStream();
+        }
+      };
+      handler.postDelayed(attemptTimeout, 8000);
+      mp.play();
+    } catch (Exception e) {
+      attemptIndex++;
+      startNextStream();
+    }
+  }
+
+  void handleVlcEvent(int type) {
+    if (type == MediaPlayer.Event.Playing) {
+      playingStarted = true;
+      handler.removeCallbacks(attemptTimeout == null ? () -> {} : attemptTimeout);
+      info.setText(getIntent().getStringExtra("name") + "  ● متصل");
+      recBtn.setEnabled(true);
+    } else if (type == MediaPlayer.Event.Buffering && !playingStarted) {
+      info.setText("دریافت تصویر...");
+    } else if (type == MediaPlayer.Event.EncounteredError && !playingStarted) {
+      handler.removeCallbacks(attemptTimeout == null ? () -> {} : attemptTimeout);
+      final int failedAttempt = attemptIndex;
+      handler.postDelayed(() -> {
+        if (!isFinishing() && !playingStarted && attemptIndex == failedAttempt) {
+          attemptIndex++;
+          startNextStream();
+        }
+      }, 500);
+    } else if (type == MediaPlayer.Event.Stopped && playingStarted) {
+      info.setText("پخش متوقف شد");
+    }
   }
 
   void toggleRecord() {
@@ -104,10 +169,14 @@ public class PlayerActivity extends Activity {
   void toast(String s) { runOnUiThread(() -> Toast.makeText(this, s, Toast.LENGTH_LONG).show()); }
 
   @Override protected void onDestroy() {
+    handler.removeCallbacksAndMessages(null);
     super.onDestroy();
     try {
-      if (rec) mp.record(null);
-      mp.stop(); mp.detachViews(); mp.release(); vlc.release();
+      if (mp != null) {
+        if (rec) mp.record(null);
+        mp.stop(); mp.detachViews(); mp.release();
+      }
+      if (vlc != null) vlc.release();
     } catch (Exception ignored) {}
   }
                                     }
