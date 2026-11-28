@@ -14,6 +14,8 @@ const KEY = 'camscan_saved';
 const loadSaved = () => { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { return []; } };
 const storeSaved = () => localStorage.setItem(KEY, JSON.stringify(saved));
 let saved = loadSaved(), found = [];
+const selectedCameras = new Set();
+const esc = value => String(value ?? '').replace(/[&<>\"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));
 const find = (id, isSaved) => (isSaved ? saved : found).find(c => c.id === id);
 
 // ---------- برند ----------
@@ -272,6 +274,25 @@ function playCam(id, isSaved) {
   CamScan.play({ urls, url: urls[0], name: c.name || c.model || c.ip });
 }
 
+// ---------- پخش هم‌زمان ----------
+function playSelectedCameras() {
+  const chosen = [];
+  for (const key of selectedCameras) {
+    const split = key.indexOf(':');
+    const isSaved = key.slice(0, split) === 's';
+    const c = find(key.slice(split + 1), isSaved);
+    if (!c) continue;
+    const auth = credentialsFor(c);
+    const urls = rtspCandidates(c, auth.user, auth.pass);
+    if (urls.length) chosen.push({ name: c.name || c.model || c.ip, url: urls[0] });
+  }
+  if (!chosen.length) return err('ابتدا دوربین‌ها را برای پخش هم‌زمان انتخاب کنید');
+  if (chosen.length > 4) return err('حداکثر ۴ دوربین را هم‌زمان انتخاب کنید');
+  $('#st').textContent = 'در حال راه‌اندازی پخش هم‌زمان...';
+  CamScan.playMulti({ urls: chosen.map(c => c.url), names: chosen.map(c => c.name) })
+    .catch(e => err(e?.message || 'راه‌اندازی پخش هم‌زمان ناموفق بود'));
+}
+
 // ---------- نام‌گذاری و ذخیره ----------
 function saveCam(id) {
   const c = find(id, false);
@@ -294,17 +315,28 @@ function delCam(id) {
 }
 
 // ---------- نمایش ----------
+function toggleCameraSelection(input) {
+  const key = input.dataset.cameraKey;
+  if (input.checked) selectedCameras.add(key);
+  else selectedCameras.delete(key);
+}
 function card(c, isSaved) {
+  const key = (isSaved ? 's:' : 'f:') + c.id;
   return `<div class="card">
-    <b><span class="dot ${c.status || ''}" data-ip="${c.ip}"></span>${isSaved ? c.name : c.ip}</b>
-    <div>${c.brand || ''} ${c.model || ''} ${c.kind ? '— ' + c.kind : ''}</div>
-    <small>${c.ip}</small>
+    <b><span class="dot ${c.status || ''}" data-ip="${esc(c.ip)}"></span>${esc(isSaved ? c.name : c.ip)}</b>
+    <div>${esc(c.brand || '')} ${esc(c.model || '')} ${c.kind ? '— ' + esc(c.kind) : ''}</div>
+    <small>${esc(c.ip)}</small>
+    <div class="credentials">
+      <div>نام کاربری: <bdi>${esc(c.user || 'ثبت نشده')}</bdi></div>
+      <div>رمز عبور: <bdi>${esc(c.pass || 'ثبت نشده')}</bdi></div>
+    </div>
+    <label class="selectCam"><input type="checkbox" data-camera-key="${esc(key)}" ${selectedCameras.has(key) ? 'checked' : ''} onchange="toggleCameraSelection(this)"> انتخاب برای پخش هم‌زمان</label>
     <div class="row">
-      <button class="g" onclick="snapshotCam('${c.id}',${isSaved})">▣ تصویر</button>
-      <button onclick="playCam('${c.id}',${isSaved})">▶ پخش زنده</button>
+      <button class="g" onclick="snapshotCam('${esc(c.id)}',${isSaved})">▣ تصویر</button>
+      <button onclick="playCam('${esc(c.id)}',${isSaved})">▶ پخش زنده</button>
       ${isSaved
-        ? `<button class="g" onclick="renameCam('${c.id}')">✎ نام</button><button class="r" onclick="delCam('${c.id}')">🗑</button>`
-        : `<button class="g" onclick="saveCam('${c.id}')">★ ذخیره</button>`}
+        ? `<button class="g" onclick="renameCam('${esc(c.id)}')">✎ نام</button><button class="r" onclick="delCam('${esc(c.id)}')">🗑</button>`
+        : `<button class="g" onclick="saveCam('${esc(c.id)}')">★ ذخیره</button>`}
     </div></div>`;
 }
 function render() {
