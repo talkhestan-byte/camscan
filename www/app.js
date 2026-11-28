@@ -121,13 +121,15 @@ async function onvifMedia(c) {
     c.ptz = d.getElementsByTagNameNS('*', 'PTZ').length > 0;
     r = await soap(media, `<GetProfiles xmlns="${MEDIA}"/>`, c);
     const pd = xml(r.text);
-    const tok = pd.getElementsByTagNameNS('*', 'Profiles')[0]?.getAttribute('token');
-    if (!tok) return;
+    const profiles = [...pd.getElementsByTagNameNS('*', 'Profiles')]
+      .map(p => p.getAttribute('token')).filter(Boolean).slice(0, 6);
+    if (!profiles.length) return;
     c.ptz = c.ptz && pd.getElementsByTagNameNS('*', 'PTZConfiguration').length > 0;
+    c.rtspList = [];
 
-    // دریافت آدرس تصویر ثابت از سرویس استاندارد ONVIF
+    // Snapshot از اولین پروفایل و RTSP از تمام پروفایل‌های معتبر دریافت می‌شود.
     try {
-      const sr = await soap(media, `<GetSnapshotUri xmlns="${MEDIA}"><ProfileToken>${tok}</ProfileToken></GetSnapshotUri>`, c);
+      const sr = await soap(media, `<GetSnapshotUri xmlns="${MEDIA}"><ProfileToken>${profiles[0]}</ProfileToken></GetSnapshotUri>`, c);
       const snapshot = tx(xml(sr.text), 'Uri');
       if (sr.status === 200 && snapshot) {
         const u = new URL(snapshot);
@@ -136,11 +138,17 @@ async function onvifMedia(c) {
       }
     } catch (e) { c.snapshot = ''; }
 
-    r = await soap(media, `<GetStreamUri xmlns="${MEDIA}"><StreamSetup>
-      <Stream xmlns="http://www.onvif.org/ver10/schema">RTP-Unicast</Stream>
-      <Transport xmlns="http://www.onvif.org/ver10/schema"><Protocol>RTSP</Protocol></Transport>
-      </StreamSetup><ProfileToken>${tok}</ProfileToken></GetStreamUri>`, c);
-    c.rtsp = tx(xml(r.text), 'Uri');
+    for (const tok of profiles) {
+      try {
+        const stream = await soap(media, `<GetStreamUri xmlns="${MEDIA}"><StreamSetup>
+          <Stream xmlns="http://www.onvif.org/ver10/schema">RTP-Unicast</Stream>
+          <Transport xmlns="http://www.onvif.org/ver10/schema"><Protocol>RTSP</Protocol></Transport>
+          </StreamSetup><ProfileToken>${tok}</ProfileToken></GetStreamUri>`, c);
+        const uri = tx(xml(stream.text), 'Uri');
+        if (stream.status === 200 && uri && !c.rtspList.includes(uri)) c.rtspList.push(uri);
+      } catch (e) {}
+    }
+    c.rtsp = c.rtspList[0] || '';
   } catch (e) {}
 }
 
@@ -173,6 +181,7 @@ function buildUrl(url, c, user, pass) {
 function rtspCandidates(c, user, pass) {
   const b = ((c.brand || '') + ' ' + (c.model || '') + ' ' + (c.hint || '') + ' ' + (c.scopes || '')).toLowerCase();
   const paths = [];
+  if (Array.isArray(c.rtspList)) paths.push(...c.rtspList);
   if (c.rtsp) paths.push(c.rtsp);
   if (/hikvision|hiwatch/.test(b)) paths.push(
     '/Streaming/Channels/101','/Streaming/Channels/102','/h264/ch1/main/av_stream'
