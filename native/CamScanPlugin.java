@@ -18,7 +18,7 @@ import java.util.concurrent.*;
 
 @CapacitorPlugin(name = "CamScan")
 public class CamScanPlugin extends Plugin {
-  static final int[] PORTS = {80, 443, 554, 8000, 8080, 8899, 34567, 37777};
+  static final int[] PORTS = {80, 443, 554, 8554, 10554, 8000, 8080, 8899, 34567, 37777};
 
   static boolean open(String ip, int port, int ms) {
     try (Socket s = new Socket()) {
