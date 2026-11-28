@@ -254,13 +254,13 @@ public class CamScanPlugin extends Plugin {
           MessageDigest md = MessageDigest.getInstance("SHA-1");
           md.update(nonce); md.update(created.getBytes(StandardCharsets.UTF_8)); md.update(pass.getBytes(StandardCharsets.UTF_8));
           String dig = Base64.encodeToString(md.digest(), Base64.NO_WRAP);
-          hdr = "<s:Header><wsse:Security s:mustUnderstand=\\"1\\" xmlns:wsse=\\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd\\" xmlns:wsu=\\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd\\">"
+          hdr = "<s:Header><wsse:Security s:mustUnderstand=\"1\" xmlns:wsse=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd\" xmlns:wsu=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd\">"
               + "<wsse:UsernameToken><wsse:Username>" + xmlEscape(user) + "</wsse:Username>"
-              + "<wsse:Password Type=\\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordDigest\\">" + dig + "</wsse:Password>"
-              + "<wsse:Nonce EncodingType=\\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary\\">" + Base64.encodeToString(nonce, Base64.NO_WRAP) + "</wsse:Nonce>"
+              + "<wsse:Password Type=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordDigest\">" + dig + "</wsse:Password>"
+              + "<wsse:Nonce EncodingType=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary\">" + Base64.encodeToString(nonce, Base64.NO_WRAP) + "</wsse:Nonce>"
               + "<wsu:Created>" + created + "</wsu:Created></wsse:UsernameToken></wsse:Security></s:Header>";
         }
-        String env = "<?xml version=\\"1.0\\" encoding=\\"UTF-8\\"?><s:Envelope xmlns:s=\\"http://www.w3.org/2003/05/soap-envelope\\">"
+        String env = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><s:Envelope xmlns:s=\"http://www.w3.org/2003/05/soap-envelope\">"
             + hdr + "<s:Body>" + call.getString("body") + "</s:Body></s:Envelope>";
         byte[] body = env.getBytes(StandardCharsets.UTF_8);
         HttpResult result = request(call.getString("url"), "POST", body, "application/soap+xml; charset=utf-8",
