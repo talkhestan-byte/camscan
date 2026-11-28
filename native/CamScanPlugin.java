@@ -59,6 +59,32 @@ public class CamScanPlugin extends Plugin {
   }
 
   @PluginMethod
+  public void playMulti(PluginCall call) {
+    try {
+      JSArray inputUrls = call.getArray("urls");
+      JSArray inputNames = call.getArray("names");
+      ArrayList<String> urls = new ArrayList<>();
+      ArrayList<String> names = new ArrayList<>();
+      if (inputUrls != null) {
+        for (int n = 0; n < inputUrls.length() && n < 4; n++) {
+          String value = inputUrls.getString(n);
+          if (value != null && !value.trim().isEmpty()) {
+            urls.add(value);
+            String name = inputNames != null && n < inputNames.length() ? inputNames.getString(n) : null;
+            names.add(name == null ? "دوربین " + urls.size() : name);
+          }
+        }
+      }
+      if (urls.isEmpty()) { call.reject("هیچ آدرس معتبری برای پخش انتخاب نشده است"); return; }
+      Intent i = new Intent(getActivity(), MultiViewActivity.class);
+      i.putStringArrayListExtra("urls", urls);
+      i.putStringArrayListExtra("names", names);
+      getActivity().startActivity(i);
+      call.resolve();
+    } catch (Exception e) { call.reject("خطا در راه‌اندازی پخش هم‌زمان: " + e.getMessage()); }
+  }
+
+  @PluginMethod
   public void discover(PluginCall call) {
     new Thread(() -> {
       WifiManager wm = (WifiManager) getContext().getApplicationContext()
