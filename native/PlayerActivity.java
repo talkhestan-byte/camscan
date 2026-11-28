@@ -76,7 +76,7 @@ public class PlayerActivity extends Activity {
   }
 
   void startNextStream() {
-    handler.removeCallbacks(attemptTimeout == null ? () -> {} : attemptTimeout);
+    if (attemptTimeout != null) handler.removeCallbacks(attemptTimeout);
     if (attemptIndex >= urls.size()) {
       playingStarted = false;
       info.setText("اتصال ناموفق؛ مسیرهای تصویر دوربین پاسخ ندادند");
