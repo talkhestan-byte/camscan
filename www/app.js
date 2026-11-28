@@ -72,6 +72,7 @@ async function scan() {
     if (f) {
       sv.ip = f.ip; sv.id = f.ip;
       if (f.rtsp) sv.rtsp = f.rtsp;
+      if (f.rtspList && f.rtspList.length) sv.rtspList = f.rtspList;
       if (f.snapshot) sv.snapshot = f.snapshot;
       sv.ports = f.ports || sv.ports || [];
       sv.mainPort = f.mainPort || sv.mainPort || 554;
@@ -281,7 +282,7 @@ function saveCam(id) {
   const name = prompt('نام دوربین:', c.model || c.ip);
   if (!name) return;
   const old = saved.findIndex(s => s.id === id);
-  const item = { id, uuid: c.uuid || '', name, ip: c.ip, ports: c.ports || [], mainPort: c.mainPort || 554, rtsp: c.rtsp || '', snapshot: c.snapshot || '', brand: c.brand,
+  const item = { id, uuid: c.uuid || '', name, ip: c.ip, ports: c.ports || [], mainPort: c.mainPort || 554, rtsp: c.rtsp || '', rtspList: c.rtspList || [], snapshot: c.snapshot || '', brand: c.brand,
     model: c.model, kind: c.kind, user: cred().user, pass: cred().pass, status: c.status };
   if (old >= 0) saved[old] = item; else saved.push(item);
   storeSaved(); render();
